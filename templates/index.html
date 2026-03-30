@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Impairer — Image Compare Tool</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header id="header">
+        <h1>Impairer</h1>
+        <div id="folder-bar">
+            <input type="text" id="folder-input" placeholder="Paste folder path (e.g. C:\Photos\Shoot01)" spellcheck="false">
+            <button id="load-btn">Load</button>
+        </div>
+    </header>
+
+    <!-- Toolbar -->
+    <div id="toolbar" class="hidden">
+        <div id="mode-toggles">
+            <button class="mode-btn active" data-mode="sidebyside">Side by Side</button>
+            <button class="mode-btn" data-mode="slider">Slider</button>
+        </div>
+        <div id="zoom-toggles">
+            <button class="zoom-btn active" data-zoom="fit">Fit</button>
+            <button class="zoom-btn" data-zoom="actual">Actual Size</button>
+            <button class="zoom-btn" data-zoom="2x">2×</button>
+            <button class="zoom-btn" data-zoom="4x">4×</button>
+        </div>
+        <div id="slider-zoom-toggles">
+            <button class="slider-zoom-btn active" data-szoom="fit">Fit</button>
+            <button class="slider-zoom-btn" data-szoom="actual">Actual Size</button>
+            <button class="slider-zoom-btn" data-szoom="2x">2×</button>
+            <button class="slider-zoom-btn" data-szoom="4x">4×</button>
+        </div>
+        <div id="progress">
+            <span id="progress-text"></span>
+        </div>
+    </div>
+
+    <!-- Comparison area -->
+    <div id="comparison-area" class="hidden mode-sidebyside">
+        <!-- Side by side panels -->
+        <div id="sidebyside-container">
+            <div class="panel" id="panel-left">
+                <img id="img-left" draggable="false" alt="Left image">
+            </div>
+            <div class="panel" id="panel-right">
+                <img id="img-right" draggable="false" alt="Right image">
+            </div>
+        </div>
+
+        <!-- Slider container -->
+        <div id="slider-container">
+            <img id="slider-img-base" draggable="false" alt="Base image">
+            <div id="slider-overlay">
+                <img id="slider-img-overlay" draggable="false" alt="Overlay image">
+            </div>
+            <div id="slider-divider"></div>
+        </div>
+    </div>
+
+    <!-- Controls row -->
+    <div id="controls" class="hidden">
+        <div class="control-col">
+            <span class="filename" id="filename-left" title=""></span>
+            <button class="choose-btn" id="choose-left">&#10004; Choose</button>
+        </div>
+        <div class="control-col">
+            <span class="filename" id="filename-right" title=""></span>
+            <button class="choose-btn" id="choose-right">&#10004; Choose</button>
+        </div>
+    </div>
+
+    <!-- Done overlay -->
+    <div id="done-overlay" class="hidden">
+        <div id="done-card">
+            <h2>Winner!</h2>
+            <p id="done-filename"></p>
+            <button id="done-restart">Load Another Folder</button>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

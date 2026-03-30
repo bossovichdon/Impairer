@@ -1,0 +1,325 @@
+/* === Reset & Base === */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #1a1a1a;
+    color: #e0e0e0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* === Header === */
+#header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 16px;
+    background: #252525;
+    border-bottom: 1px solid #333;
+    flex-shrink: 0;
+}
+
+#header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    white-space: nowrap;
+    color: #ccc;
+}
+
+#folder-bar {
+    display: flex;
+    flex: 1;
+    gap: 8px;
+}
+
+#folder-input {
+    flex: 1;
+    padding: 6px 10px;
+    border: 1px solid #444;
+    border-radius: 4px;
+    background: #2a2a2a;
+    color: #e0e0e0;
+    font-size: 14px;
+    outline: none;
+}
+
+#folder-input:focus {
+    border-color: #6a9ef5;
+}
+
+#load-btn {
+    padding: 6px 18px;
+    background: #4a8af5;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+#load-btn:hover {
+    background: #3a7ae5;
+}
+
+/* === Toolbar === */
+#toolbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 8px 16px;
+    background: #222;
+    border-bottom: 1px solid #333;
+    flex-shrink: 0;
+}
+
+#mode-toggles, #zoom-toggles, #slider-zoom-toggles {
+    display: flex;
+    gap: 4px;
+}
+
+#slider-zoom-toggles {
+    display: none;
+}
+
+.mode-btn, .zoom-btn, .slider-zoom-btn {
+    padding: 4px 12px;
+    background: #333;
+    color: #bbb;
+    border: 1px solid #444;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.mode-btn.active, .zoom-btn.active, .slider-zoom-btn.active {
+    background: #4a8af5;
+    color: #fff;
+    border-color: #4a8af5;
+}
+
+.mode-btn:hover:not(.active), .zoom-btn:hover:not(.active), .slider-zoom-btn:hover:not(.active) {
+    background: #3a3a3a;
+}
+
+#progress {
+    margin-left: auto;
+    font-size: 13px;
+    color: #999;
+}
+
+/* === Comparison Area === */
+#comparison-area {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: #111;
+    min-height: 0;
+}
+
+/* Side by side */
+#sidebyside-container {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    gap: 4px;
+}
+
+.panel {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.panel img {
+    display: block;
+    pointer-events: none;
+    user-select: none;
+    transform-origin: 0 0;
+}
+
+/* Zoom: all levels — sizes set dynamically via JS */
+#comparison-area.zoom-actual .panel,
+#comparison-area.zoom-2x .panel,
+#comparison-area.zoom-4x .panel {
+    cursor: crosshair;
+}
+
+/* Slider */
+#slider-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: col-resize;
+}
+
+#slider-img-base {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    pointer-events: none;
+    user-select: none;
+    transform-origin: 0 0;
+}
+
+#slider-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    clip-path: inset(0 50% 0 0);
+}
+
+#slider-img-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    pointer-events: none;
+    user-select: none;
+    transform-origin: 0 0;
+}
+
+#slider-divider {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: rgba(255, 255, 255, 0.8);
+    pointer-events: none;
+    left: 50%;
+    box-shadow: 0 0 6px rgba(0,0,0,0.5);
+}
+
+/* Mode visibility */
+#comparison-area.mode-sidebyside #slider-container {
+    display: none;
+}
+
+#comparison-area.mode-slider #sidebyside-container {
+    display: none;
+}
+
+/* Slider zoom: all sizing/positioning handled in JS */
+
+/* Show slider zoom toggles in slider mode, hide side-by-side zoom toggles */
+body.slider-mode #zoom-toggles {
+    display: none;
+}
+
+body.slider-mode #slider-zoom-toggles {
+    display: flex;
+}
+
+/* === Controls Row === */
+#controls {
+    display: flex;
+    gap: 4px;
+    padding: 10px 16px;
+    background: #222;
+    border-top: 1px solid #333;
+    flex-shrink: 0;
+}
+
+.control-col {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.control-col:last-child {
+    justify-content: flex-end;
+}
+
+.filename {
+    font-size: 13px;
+    color: #aaa;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 45vw;
+}
+
+.choose-btn {
+    padding: 8px 20px;
+    background: #2d8a4e;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.choose-btn:hover {
+    background: #257a42;
+}
+
+/* === Done Overlay === */
+#done-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+#done-card {
+    background: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 40px 50px;
+    text-align: center;
+}
+
+#done-card h2 {
+    font-size: 24px;
+    margin-bottom: 12px;
+    color: #4a8af5;
+}
+
+#done-filename {
+    font-size: 16px;
+    color: #ccc;
+    margin-bottom: 24px;
+    word-break: break-all;
+}
+
+#done-restart {
+    padding: 8px 24px;
+    background: #4a8af5;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+#done-restart:hover {
+    background: #3a7ae5;
+}
