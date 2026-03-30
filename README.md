@@ -2,6 +2,12 @@
 
 A browser-based image comparison tool that lets you pick a winner from a folder of images through a tournament-style bracket. Supports side-by-side and slider comparison modes with multiple zoom levels.
 
+![image](demo/slider.gif)
+
+![image](demo/sbs.gif)
+
+![image](demo/pick.gif)
+
 ## Requirements
 
 - Python 3.8+
