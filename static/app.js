@@ -461,11 +461,37 @@ window.addEventListener("resize", () => {
 
 // =====================================================
 // Heartbeat & shutdown (keeps exe alive while tab is open)
+// A Web Worker is used so the browser does not throttle the
+// interval when the tab is in the background.
 // =====================================================
+// Register this tab with the server
+fetch("/api/connect", { method: "POST" }).catch(() => {});
+
+// Web Worker heartbeat — uses absolute URL so fetch resolves correctly
+// inside the blob worker (relative URLs resolve against the blob: URL,
+// not the page origin).
+const _hbUrl = location.origin + "/api/heartbeat";
+try {
+    const _hbBlob = new Blob([
+        `setInterval(()=>{fetch("${_hbUrl}",{method:"POST"}).catch(()=>{})},3000);`
+    ], { type: "application/javascript" });
+    new Worker(URL.createObjectURL(_hbBlob));
+} catch (_) { /* worker unsupported — main-thread interval below is enough */ }
+
+// Main-thread heartbeat as a fallback (throttled to ~1/min in background
+// tabs, but together with the worker and the generous server timeout this
+// keeps the app alive).
 setInterval(() => {
     fetch("/api/heartbeat", { method: "POST" }).catch(() => {});
 }, 3000);
 
+// Send an immediate heartbeat whenever the tab regains focus
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+        fetch("/api/heartbeat", { method: "POST" }).catch(() => {});
+    }
+});
+
 window.addEventListener("beforeunload", () => {
-    navigator.sendBeacon("/api/shutdown");
+    navigator.sendBeacon("/api/disconnect");
 });

@@ -21,9 +21,11 @@ app = Flask(
 
 ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp'}
 
-SHUTDOWN_TIMEOUT = 10  # seconds without a heartbeat before auto-exit
+SHUTDOWN_TIMEOUT = 120  # seconds without a heartbeat before auto-exit
 _last_heartbeat = time.time()
 _heartbeat_lock = threading.Lock()
+_tab_count = 0
+_tab_lock = threading.Lock()
 
 state = {
     "folder": None,
@@ -134,6 +136,31 @@ def heartbeat():
     with _heartbeat_lock:
         _last_heartbeat = time.time()
     return "", 204
+
+
+@app.route("/api/connect", methods=["POST"])
+def tab_connect():
+    global _tab_count
+    with _tab_lock:
+        _tab_count += 1
+    return "", 204
+
+
+@app.route("/api/disconnect", methods=["POST"])
+def tab_disconnect():
+    global _tab_count
+    with _tab_lock:
+        _tab_count = max(0, _tab_count - 1)
+        if _tab_count == 0:
+            # Last tab closed — shut down after a brief grace period
+            threading.Timer(1.0, _shutdown_if_no_tabs).start()
+    return "", 204
+
+
+def _shutdown_if_no_tabs():
+    with _tab_lock:
+        if _tab_count == 0:
+            os._exit(0)
 
 
 @app.route("/api/shutdown", methods=["POST"])
