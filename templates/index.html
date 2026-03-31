@@ -34,6 +34,10 @@
             <button class="slider-zoom-btn" data-szoom="2x">2×</button>
             <button class="slider-zoom-btn" data-szoom="4x">4×</button>
         </div>
+        <div id="peek-btn">
+            <div id="peek-left" title="Preview left image">L</div>
+            <div id="peek-right" title="Preview right image">R</div>
+        </div>
         <div id="progress">
             <span id="progress-text"></span>
         </div>
@@ -41,6 +45,10 @@
 
     <!-- Comparison area -->
     <div id="comparison-area" class="hidden mode-sidebyside">
+        <!-- Peek overlay (single image preview) -->
+        <div id="peek-overlay" class="hidden">
+            <img id="peek-img" draggable="false" alt="Preview">
+        </div>
         <!-- Side by side panels -->
         <div id="sidebyside-container">
             <div class="panel" id="panel-left">

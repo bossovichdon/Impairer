@@ -185,13 +185,16 @@ if __name__ == "__main__":
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             return s.connect_ex(("127.0.0.1", port)) == 0
 
-    if port_in_use(5000):
-        # Another instance is already running — just open the browser to it
-        webbrowser.open("http://127.0.0.1:5000")
-        sys.exit(0)
-
     is_frozen = getattr(sys, "frozen", False)
+    is_reloader = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
+
+    if not is_reloader:
+        if port_in_use(5000):
+            # Another instance is already running — just open the browser to it
+            webbrowser.open("http://127.0.0.1:5000")
+            sys.exit(0)
+        threading.Timer(1.5, lambda: webbrowser.open("http://127.0.0.1:5000")).start()
+
     if is_frozen:
-        threading.Timer(1.0, lambda: webbrowser.open("http://127.0.0.1:5000")).start()
         threading.Thread(target=_watchdog, daemon=True).start()
     app.run(debug=not is_frozen, port=5000)

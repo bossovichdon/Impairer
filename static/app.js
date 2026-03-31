@@ -304,9 +304,23 @@ function applyZoom() {
         panelRight.style.alignItems = "center";
     }
 
-    // Reset transform — panning will update when the mouse moves
-    imgLeft.style.transform  = "";
-    imgRight.style.transform = "";
+    // Center the image — panning will update when the mouse moves
+    centerSideBySide();
+}
+
+function centerSideBySide() {
+    const panelW = panelLeft.clientWidth;
+    const panelH = panelLeft.clientHeight;
+    const imgW   = imgLeft.offsetWidth;
+    const imgH   = imgLeft.offsetHeight;
+
+    const overflowX = Math.max(0, imgW - panelW);
+    const overflowY = Math.max(0, imgH - panelH);
+    const tx = -overflowX * 0.5;
+    const ty = -overflowY * 0.5;
+    const t = `translate(${tx}px, ${ty}px)`;
+    imgLeft.style.transform  = t;
+    imgRight.style.transform = t;
 }
 
 // =====================================================
@@ -339,6 +353,11 @@ sideContainer.addEventListener("mousemove", (e) => {
     imgRight.style.transform = t;
 });
 
+sideContainer.addEventListener("mouseleave", () => {
+    if (currentMode !== "sidebyside") return;
+    centerSideBySide();
+});
+
 // =====================================================
 // Slider interaction
 // =====================================================
@@ -348,6 +367,13 @@ sliderContainer.addEventListener("mousemove", (e) => {
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     sliderRatioY = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
     updateSlider(ratio);
+});
+
+sliderContainer.addEventListener("mouseleave", () => {
+    if (currentMode !== "slider") return;
+    sliderRatio = 0.5;
+    sliderRatioY = 0.5;
+    updateSlider(0.5);
 });
 
 function updateSlider(ratio) {
@@ -446,6 +472,43 @@ function applySliderZoom() {
 
     updateSlider(sliderRatio);
 }
+
+// =====================================================
+// Peek button (quick preview / choose)
+// =====================================================
+const peekLeft     = document.getElementById("peek-left");
+const peekRight    = document.getElementById("peek-right");
+const peekOverlay  = document.getElementById("peek-overlay");
+const peekImg      = document.getElementById("peek-img");
+
+function showPeek(side) {
+    const file = side === "left"
+        ? (championSide === "left" ? champion : challenger)
+        : (championSide === "right" ? champion : challenger);
+    if (!file) return;
+    peekImg.src = imageUrl(file);
+    peekOverlay.classList.remove("hidden");
+}
+
+function hidePeek() {
+    peekOverlay.classList.add("hidden");
+    peekImg.src = "";
+}
+
+peekLeft.addEventListener("mouseenter", () => showPeek("left"));
+peekRight.addEventListener("mouseenter", () => showPeek("right"));
+peekLeft.addEventListener("mouseleave", hidePeek);
+peekRight.addEventListener("mouseleave", hidePeek);
+
+peekLeft.addEventListener("click", () => {
+    const winner = championSide === "left" ? champion : challenger;
+    if (winner) chooseWinner(winner, "left");
+});
+
+peekRight.addEventListener("click", () => {
+    const winner = championSide === "right" ? champion : challenger;
+    if (winner) chooseWinner(winner, "right");
+});
 
 // =====================================================
 // Window resize → reapply zoom
