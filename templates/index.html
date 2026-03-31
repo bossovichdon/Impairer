@@ -12,9 +12,32 @@
         <h1>Impairer</h1>
         <div id="folder-bar">
             <input type="text" id="folder-input" placeholder="Paste folder path (e.g. C:\Photos\Shoot01)" spellcheck="false">
+            <button id="filter-toggle" title="Toggle filters">&#9660;</button>
+            <button id="browse-btn" title="Browse for folder">Browse</button>
             <button id="load-btn">Load</button>
         </div>
     </header>
+
+    <!-- Filter accordion -->
+    <div id="filter-bar">
+        <div id="filter-panel" class="hidden">
+            <div id="filter-formats">
+                <span class="filter-label">Formats:</span>
+                <label><input type="checkbox" class="fmt-cb" value=".jpg" checked> JPG</label>
+                <label><input type="checkbox" class="fmt-cb" value=".jpeg" checked> JPEG</label>
+                <label><input type="checkbox" class="fmt-cb" value=".png" checked> PNG</label>
+                <label><input type="checkbox" class="fmt-cb" value=".webp" checked> WebP</label>
+            </div>
+            <div id="filter-name">
+                <span class="filter-label">Filename:</span>
+                <input type="text" id="filter-text" placeholder="Filter text or pattern" spellcheck="false">
+                <label><input type="radio" name="filter-mode" value="starts" checked> Starts with</label>
+                <label><input type="radio" name="filter-mode" value="contains"> Contains</label>
+                <label><input type="radio" name="filter-mode" value="ends"> Ends with</label>
+                <label><input type="radio" name="filter-mode" value="regex"> Regex</label>
+            </div>
+        </div>
+    </div>
 
     <!-- Toolbar -->
     <div id="toolbar" class="hidden">
@@ -39,6 +62,7 @@
             <div id="peek-right" title="Preview right image">R</div>
         </div>
         <div id="progress">
+            <button id="undo-btn" disabled title="Undo last choice">&#x21A9;</button>
             <span id="progress-text"></span>
         </div>
     </div>
@@ -85,7 +109,10 @@
     <div id="done-overlay" class="hidden">
         <div id="done-card">
             <h2>Winner!</h2>
+            <img id="done-image" draggable="false" alt="Winner image">
             <p id="done-filename"></p>
+            <button id="done-undo" class="hidden" title="Undo last choice">&#x21A9;&nbsp;Undo</button>
+            <button id="done-keep">&#128230; Copy to Keep</button>
             <button id="done-restart">Load Another Folder</button>
         </div>
     </div>

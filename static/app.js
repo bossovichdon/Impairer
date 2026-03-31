@@ -4,14 +4,21 @@
 
 // --- DOM refs ---
 const folderInput    = document.getElementById("folder-input");
+const browseBtn      = document.getElementById("browse-btn");
 const loadBtn        = document.getElementById("load-btn");
+const filterToggle   = document.getElementById("filter-toggle");
+const filterPanel    = document.getElementById("filter-panel");
+const filterText     = document.getElementById("filter-text");
 const toolbar        = document.getElementById("toolbar");
 const compArea       = document.getElementById("comparison-area");
 const controls       = document.getElementById("controls");
 const progressText   = document.getElementById("progress-text");
 const doneOverlay    = document.getElementById("done-overlay");
+const doneImage      = document.getElementById("done-image");
 const doneFilename   = document.getElementById("done-filename");
 const doneRestart    = document.getElementById("done-restart");
+const doneUndo       = document.getElementById("done-undo");
+const undoBtn        = document.getElementById("undo-btn");
 
 // Side-by-side
 const sideContainer  = document.getElementById("sidebyside-container");
@@ -43,6 +50,7 @@ let sliderZoom  = "fit";        // "fit" | "actual"
 let champion = null;
 let challenger = null;
 let championSide = "left";      // which panel currently shows the champion
+let championSideHistory = [];   // history of championSide for undo
 let total = 0;
 let sliderRatio = 0.5;          // current slider position
 let sliderRatioY = 0.5;         // current vertical pan position
@@ -70,9 +78,36 @@ function imageUrl(filename) {
 // =====================================================
 // Load folder
 // =====================================================
+// =====================================================
+// Filter accordion
+// =====================================================
+filterToggle.addEventListener("click", () => {
+    filterPanel.classList.toggle("hidden");
+    filterToggle.innerHTML = filterPanel.classList.contains("hidden")
+        ? "&#9660;" : "&#9650;";
+});
+
+function getFilters() {
+    const formats = [...document.querySelectorAll(".fmt-cb")]
+        .filter(cb => cb.checked).map(cb => cb.value);
+    const text = filterText.value;
+    const mode = document.querySelector('input[name="filter-mode"]:checked').value;
+    return { formats, filterText: text, filterMode: mode };
+}
+
 loadBtn.addEventListener("click", loadFolder);
 folderInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") loadFolder();
+});
+browseBtn.addEventListener("click", async () => {
+    browseBtn.disabled = true;
+    const resp = await fetch("/api/browse", { method: "POST" });
+    const data = await resp.json();
+    browseBtn.disabled = false;
+    if (data.folder) {
+        folderInput.value = data.folder;
+        loadFolder();
+    }
 });
 
 async function loadFolder() {
@@ -80,7 +115,8 @@ async function loadFolder() {
     if (!folder) return;
 
     loadBtn.disabled = true;
-    const data = await apiPost("/api/load", { folder });
+    const filters = getFilters();
+    const data = await apiPost("/api/load", { folder, ...filters });
     loadBtn.disabled = false;
 
     if (data.error) {
@@ -98,6 +134,8 @@ async function loadFolder() {
     champion = data.champion;
     challenger = data.challenger;
     championSide = "left";
+    championSideHistory = [];
+    undoBtn.disabled = true;
     showComparison(data);
 }
 
@@ -131,9 +169,9 @@ function loadImages() {
     imgLeft.src  = leftSrc;
     imgRight.src = rightSrc;
 
-    // Slider images
-    sliderBase.src   = leftSrc;
-    sliderOverImg.src = rightSrc;
+    // Slider images (overlay is clipped to the left, base fills the right)
+    sliderBase.src   = rightSrc;
+    sliderOverImg.src = leftSrc;
 
     fnLeft.textContent  = leftFile;
     fnLeft.title        = leftFile;
@@ -171,6 +209,11 @@ chooseRight.addEventListener("click", () => {
     chooseWinner(winner, "right");
 });
 
+chooseLeft.addEventListener("mouseenter", () => { panelLeft.classList.add("glow"); sliderContainer.classList.add("glow-left"); });
+chooseLeft.addEventListener("mouseleave", () => { panelLeft.classList.remove("glow"); sliderContainer.classList.remove("glow-left"); });
+chooseRight.addEventListener("mouseenter", () => { panelRight.classList.add("glow"); sliderContainer.classList.add("glow-right"); });
+chooseRight.addEventListener("mouseleave", () => { panelRight.classList.remove("glow"); sliderContainer.classList.remove("glow-right"); });
+
 async function chooseWinner(winner, chosenSide) {
     chooseLeft.disabled  = true;
     chooseRight.disabled = true;
@@ -184,6 +227,10 @@ async function chooseWinner(winner, chosenSide) {
         alert(data.error);
         return;
     }
+
+    // Save championSide for undo before updating
+    championSideHistory.push(championSide);
+    undoBtn.disabled = !data.canUndo;
 
     if (data.status === "done") {
         showDone(data.winner);
@@ -202,14 +249,55 @@ function showDone(winner) {
     compArea.classList.add("hidden");
     controls.classList.add("hidden");
     doneOverlay.classList.remove("hidden");
+    doneImage.src = imageUrl(winner);
     doneFilename.textContent = winner;
+    doneUndo.disabled = championSideHistory.length === 0;
+    doneUndo.classList.toggle("hidden", championSideHistory.length === 0);
+    doneKeep.disabled = false;
+    doneKeep.textContent = "\uD83D\uDCE6 Copy to Keep";
 }
+
+const doneKeep = document.getElementById("done-keep");
+
+doneKeep.addEventListener("click", async () => {
+    doneKeep.disabled = true;
+    const data = await apiPost("/api/keep", {});
+    if (data.error) {
+        alert(data.error);
+        doneKeep.disabled = false;
+    } else {
+        doneKeep.textContent = "\u2714 Copied!";
+    }
+});
 
 doneRestart.addEventListener("click", () => {
     doneOverlay.classList.add("hidden");
     folderInput.value = "";
     folderInput.focus();
 });
+
+// =====================================================
+// Undo
+// =====================================================
+async function performUndo() {
+    undoBtn.disabled = true;
+    doneUndo.disabled = true;
+    const data = await apiPost("/api/undo", {});
+
+    if (data.error) {
+        alert(data.error);
+        undoBtn.disabled = false;
+        doneUndo.disabled = false;
+        return;
+    }
+
+    championSide = championSideHistory.pop() || "left";
+    undoBtn.disabled = !data.canUndo;
+    showComparison(data);
+}
+
+undoBtn.addEventListener("click", performUndo);
+doneUndo.addEventListener("click", performUndo);
 
 // =====================================================
 // Mode toggle
@@ -367,6 +455,13 @@ sliderContainer.addEventListener("mousemove", (e) => {
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     sliderRatioY = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
     updateSlider(ratio);
+
+    // Edge zone selection hints
+    const inLeft  = ratio <= 0.1;
+    const inRight = ratio >= 0.9;
+    sliderContainer.classList.toggle("glow-select-right", inLeft);
+    sliderContainer.classList.toggle("glow-select-left", inRight);
+    sliderContainer.style.cursor = (inLeft || inRight) ? "pointer" : "col-resize";
 });
 
 sliderContainer.addEventListener("mouseleave", () => {
@@ -374,6 +469,19 @@ sliderContainer.addEventListener("mouseleave", () => {
     sliderRatio = 0.5;
     sliderRatioY = 0.5;
     updateSlider(0.5);
+    sliderContainer.classList.remove("glow-select-left", "glow-select-right");
+    sliderContainer.style.cursor = "col-resize";
+});
+
+sliderContainer.addEventListener("click", () => {
+    if (currentMode !== "slider") return;
+    if (sliderRatio >= 0.9) {
+        // Left image mostly visible — select left
+        chooseLeft.click();
+    } else if (sliderRatio <= 0.1) {
+        // Right image mostly visible — select right
+        chooseRight.click();
+    }
 });
 
 function updateSlider(ratio) {

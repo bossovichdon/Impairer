@@ -1,8 +1,12 @@
 import os
+import re
 import sys
 import random
+import shutil
 import time
 import threading
+import tkinter as tk
+from tkinter import filedialog
 from flask import Flask, render_template, request, jsonify, send_from_directory, abort
 
 
@@ -34,6 +38,7 @@ state = {
     "pending": [],
     "total": 0,
 }
+history = []
 
 
 def is_safe_path(base, filename):
@@ -58,14 +63,42 @@ def load_folder():
 
     folder = os.path.abspath(folder)
 
+    # Format filter
+    formats = data.get("formats", None)
+    if formats and isinstance(formats, list):
+        exts = {e.lower() for e in formats if isinstance(e, str) and e.startswith(".")}
+    else:
+        exts = ALLOWED_EXTENSIONS
+    # Only allow known extensions
+    exts = exts & ALLOWED_EXTENSIONS
+    if not exts:
+        exts = ALLOWED_EXTENSIONS
+
     images = sorted(
         f for f in os.listdir(folder)
         if os.path.isfile(os.path.join(folder, f))
-        and os.path.splitext(f)[1].lower() in ALLOWED_EXTENSIONS
+        and os.path.splitext(f)[1].lower() in exts
     )
 
+    # Filename filter
+    filter_text = data.get("filterText", "").strip()
+    filter_mode = data.get("filterMode", "")
+    if filter_text:
+        if filter_mode == "starts":
+            images = [f for f in images if os.path.splitext(f)[0].lower().startswith(filter_text.lower())]
+        elif filter_mode == "contains":
+            images = [f for f in images if filter_text.lower() in os.path.splitext(f)[0].lower()]
+        elif filter_mode == "ends":
+            images = [f for f in images if os.path.splitext(f)[0].lower().endswith(filter_text.lower())]
+        elif filter_mode == "regex":
+            try:
+                pat = re.compile(filter_text, re.IGNORECASE)
+                images = [f for f in images if pat.search(os.path.splitext(f)[0])]
+            except re.error:
+                return jsonify({"error": "Invalid regex pattern."}), 400
+
     if len(images) == 0:
-        return jsonify({"error": "No supported images found in that folder."}), 400
+        return jsonify({"error": "No supported images found matching the filters."}), 400
 
     if len(images) == 1:
         state["folder"] = folder
@@ -84,6 +117,7 @@ def load_folder():
     state["challenger"] = images[1]
     state["pending"] = images[2:]
     state["total"] = len(images)
+    history.clear()
 
     return jsonify({
         "status": "continue",
@@ -92,6 +126,18 @@ def load_folder():
         "remaining": len(state["pending"]),
         "total": state["total"],
     })
+
+
+@app.route("/api/browse", methods=["POST"])
+def browse_folder():
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes("-topmost", True)
+    folder = filedialog.askdirectory(title="Select image folder")
+    root.destroy()
+    if not folder:
+        return jsonify({"folder": ""})
+    return jsonify({"folder": os.path.normpath(folder)})
 
 
 @app.route("/api/image/<path:filename>")
@@ -111,12 +157,21 @@ def choose_winner():
     if winner not in (state["champion"], state["challenger"]):
         return jsonify({"error": "Invalid winner."}), 400
 
+    # Save snapshot for undo
+    history.append({
+        "champion": state["champion"],
+        "challenger": state["challenger"],
+        "pending": list(state["pending"]),
+    })
+
     state["champion"] = winner
 
     if not state["pending"]:
+        state["challenger"] = None
         return jsonify({
             "status": "done",
             "winner": state["champion"],
+            "canUndo": len(history) > 0,
         })
 
     state["challenger"] = state["pending"].pop(0)
@@ -127,7 +182,49 @@ def choose_winner():
         "challenger": state["challenger"],
         "remaining": len(state["pending"]),
         "total": state["total"],
+        "canUndo": len(history) > 0,
     })
+
+
+@app.route("/api/undo", methods=["POST"])
+def undo_choice():
+    if not history:
+        return jsonify({"error": "Nothing to undo."}), 400
+
+    snapshot = history.pop()
+    state["champion"] = snapshot["champion"]
+    state["challenger"] = snapshot["challenger"]
+    state["pending"] = snapshot["pending"]
+
+    return jsonify({
+        "status": "continue",
+        "champion": state["champion"],
+        "challenger": state["challenger"],
+        "remaining": len(state["pending"]),
+        "total": state["total"],
+        "canUndo": len(history) > 0,
+    })
+
+
+@app.route("/api/keep", methods=["POST"])
+def keep_winner():
+    if state["folder"] is None or state["champion"] is None:
+        return jsonify({"error": "No winner to keep."}), 400
+
+    filename = state["champion"]
+    if not is_safe_path(state["folder"], filename):
+        return jsonify({"error": "Invalid filename."}), 403
+
+    src = os.path.join(state["folder"], filename)
+    keep_dir = os.path.join(state["folder"], "keep")
+    os.makedirs(keep_dir, exist_ok=True)
+    dest = os.path.join(keep_dir, filename)
+
+    if os.path.exists(dest):
+        return jsonify({"error": "File already exists in keep folder."}), 409
+
+    shutil.copy2(src, dest)
+    return jsonify({"ok": True})
 
 
 @app.route("/api/heartbeat", methods=["POST"])
