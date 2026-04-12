@@ -186,6 +186,41 @@ def choose_winner():
     })
 
 
+@app.route("/api/back-to-pile", methods=["POST"])
+def back_to_pile():
+    data = request.get_json()
+    image = data.get("image", "")
+
+    if image not in (state["champion"], state["challenger"]):
+        return jsonify({"error": "Invalid image."}), 400
+
+    if not state["pending"] and state["champion"] and state["challenger"]:
+        # Only two images left — sending one back just re-shows the same pair
+        pass
+
+    # Save snapshot for undo
+    history.append({
+        "champion": state["champion"],
+        "challenger": state["challenger"],
+        "pending": list(state["pending"]),
+    })
+
+    # The other image stays as champion; the sent-back image goes to end of pending
+    other = state["challenger"] if image == state["champion"] else state["champion"]
+    state["pending"].append(image)
+    state["champion"] = other
+    state["challenger"] = state["pending"].pop(0)
+
+    return jsonify({
+        "status": "continue",
+        "champion": state["champion"],
+        "challenger": state["challenger"],
+        "remaining": len(state["pending"]),
+        "total": state["total"],
+        "canUndo": len(history) > 0,
+    })
+
+
 @app.route("/api/undo", methods=["POST"])
 def undo_choice():
     if not history:
@@ -249,8 +284,8 @@ def tab_disconnect():
     with _tab_lock:
         _tab_count = max(0, _tab_count - 1)
         if _tab_count == 0:
-            # Last tab closed — shut down after a brief grace period
-            threading.Timer(1.0, _shutdown_if_no_tabs).start()
+            # Last tab closed — shut down after a grace period to allow reopening
+            threading.Timer(15.0, _shutdown_if_no_tabs).start()
     return "", 204
 
 

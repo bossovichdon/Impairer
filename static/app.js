@@ -30,6 +30,8 @@ const fnLeft         = document.getElementById("filename-left");
 const fnRight        = document.getElementById("filename-right");
 const chooseLeft     = document.getElementById("choose-left");
 const chooseRight    = document.getElementById("choose-right");
+const pileLeft       = document.getElementById("pile-left");
+const pileRight      = document.getElementById("pile-right");
 
 // Slider
 const sliderContainer = document.getElementById("slider-container");
@@ -213,6 +215,82 @@ chooseLeft.addEventListener("mouseenter", () => { panelLeft.classList.add("glow"
 chooseLeft.addEventListener("mouseleave", () => { panelLeft.classList.remove("glow"); sliderContainer.classList.remove("glow-left"); });
 chooseRight.addEventListener("mouseenter", () => { panelRight.classList.add("glow"); sliderContainer.classList.add("glow-right"); });
 chooseRight.addEventListener("mouseleave", () => { panelRight.classList.remove("glow"); sliderContainer.classList.remove("glow-right"); });
+
+// Back to pile — hover glow (orange) with fade-out that stays orange
+let _pileFadeTimerL = 0;
+let _pileFadeTimerR = 0;
+
+pileLeft.addEventListener("mouseenter", () => {
+    clearTimeout(_pileFadeTimerL);
+    panelLeft.classList.remove("glow-orange-fade");
+    sliderContainer.classList.remove("glow-left-orange-fade");
+    panelLeft.classList.add("glow-orange");
+    sliderContainer.classList.add("glow-left-orange");
+});
+pileLeft.addEventListener("mouseleave", () => {
+    panelLeft.classList.remove("glow-orange");
+    sliderContainer.classList.remove("glow-left-orange");
+    panelLeft.classList.add("glow-orange-fade");
+    sliderContainer.classList.add("glow-left-orange-fade");
+    _pileFadeTimerL = setTimeout(() => {
+        panelLeft.classList.remove("glow-orange-fade");
+        sliderContainer.classList.remove("glow-left-orange-fade");
+    }, 400);
+});
+pileRight.addEventListener("mouseenter", () => {
+    clearTimeout(_pileFadeTimerR);
+    panelRight.classList.remove("glow-orange-fade");
+    sliderContainer.classList.remove("glow-right-orange-fade");
+    panelRight.classList.add("glow-orange");
+    sliderContainer.classList.add("glow-right-orange");
+});
+pileRight.addEventListener("mouseleave", () => {
+    panelRight.classList.remove("glow-orange");
+    sliderContainer.classList.remove("glow-right-orange");
+    panelRight.classList.add("glow-orange-fade");
+    sliderContainer.classList.add("glow-right-orange-fade");
+    _pileFadeTimerR = setTimeout(() => {
+        panelRight.classList.remove("glow-orange-fade");
+        sliderContainer.classList.remove("glow-right-orange-fade");
+    }, 400);
+});
+
+// Back to pile — click
+pileLeft.addEventListener("click", () => {
+    const image = championSide === "left" ? champion : challenger;
+    backToPile(image, "left");
+});
+pileRight.addEventListener("click", () => {
+    const image = championSide === "right" ? champion : challenger;
+    backToPile(image, "right");
+});
+
+async function backToPile(image, side) {
+    pileLeft.disabled  = true;
+    pileRight.disabled = true;
+    chooseLeft.disabled  = true;
+    chooseRight.disabled = true;
+
+    const data = await apiPost("/api/back-to-pile", { image });
+
+    pileLeft.disabled  = false;
+    pileRight.disabled = false;
+    chooseLeft.disabled  = false;
+    chooseRight.disabled = false;
+
+    if (data.error) {
+        alert(data.error);
+        return;
+    }
+
+    // Save championSide for undo before updating
+    championSideHistory.push(championSide);
+    undoBtn.disabled = !data.canUndo;
+
+    // The non-sent-back side keeps its position as champion
+    championSide = side === "left" ? "right" : "left";
+    showComparison(data);
+}
 
 async function chooseWinner(winner, chosenSide) {
     chooseLeft.disabled  = true;
@@ -588,34 +666,75 @@ const peekLeft     = document.getElementById("peek-left");
 const peekRight    = document.getElementById("peek-right");
 const peekOverlay  = document.getElementById("peek-overlay");
 const peekImg      = document.getElementById("peek-img");
+const peekBtnWrap  = document.getElementById("peek-btn");
+
+let peekActive = false;
+let peekBounds = null;
+let peekMidX   = 0;
+let peekSide   = null;   // "left" | "right" — currently shown side
 
 function showPeek(side) {
     const file = side === "left"
         ? (championSide === "left" ? champion : challenger)
         : (championSide === "right" ? champion : challenger);
     if (!file) return;
+    peekSide = side;
     peekImg.src = imageUrl(file);
     peekOverlay.classList.remove("hidden");
+    peekOverlay.classList.add("glow");
+    peekLeft.classList.toggle("peek-active", side === "left");
+    peekRight.classList.toggle("peek-active", side === "right");
+    document.body.style.cursor = "pointer";
+    if (!peekActive) {
+        peekActive = true;
+        const rect = peekBtnWrap.getBoundingClientRect();
+        peekMidX = (rect.left + rect.right) / 2;
+        peekBounds = {
+            left:   rect.left   - 28,
+            right:  rect.right  + 28,
+            top:    rect.top    - 28,
+            bottom: rect.bottom + 28
+        };
+    }
 }
 
 function hidePeek() {
     peekOverlay.classList.add("hidden");
     peekImg.src = "";
+    peekActive = false;
+    peekBounds = null;
+    peekSide   = null;
+    peekOverlay.classList.remove("glow");
+    peekLeft.classList.remove("peek-active");
+    peekRight.classList.remove("peek-active");
+    document.body.style.cursor = "";
 }
 
 peekLeft.addEventListener("mouseenter", () => showPeek("left"));
 peekRight.addEventListener("mouseenter", () => showPeek("right"));
-peekLeft.addEventListener("mouseleave", hidePeek);
-peekRight.addEventListener("mouseleave", hidePeek);
 
-peekLeft.addEventListener("click", () => {
-    const winner = championSide === "left" ? champion : challenger;
-    if (winner) chooseWinner(winner, "left");
+document.addEventListener("mousemove", (e) => {
+    if (!peekActive || !peekBounds) return;
+    if (e.clientX < peekBounds.left  || e.clientX > peekBounds.right ||
+        e.clientY < peekBounds.top   || e.clientY > peekBounds.bottom) {
+        hidePeek();
+        return;
+    }
+    // Switch side when crossing the midpoint inside the extended area
+    const hoveredSide = e.clientX < peekMidX ? "left" : "right";
+    if (hoveredSide !== peekSide) showPeek(hoveredSide);
 });
 
-peekRight.addEventListener("click", () => {
-    const winner = championSide === "right" ? champion : challenger;
-    if (winner) chooseWinner(winner, "right");
+document.addEventListener("click", (e) => {
+    if (!peekActive || !peekBounds || !peekSide) return;
+    if (e.clientX >= peekBounds.left  && e.clientX <= peekBounds.right &&
+        e.clientY >= peekBounds.top   && e.clientY <= peekBounds.bottom) {
+        const side = e.clientX < peekMidX ? "left" : "right";
+        const winner = side === "left"
+            ? (championSide === "left" ? champion : challenger)
+            : (championSide === "right" ? champion : challenger);
+        if (winner) chooseWinner(winner, side);
+    }
 });
 
 // =====================================================
